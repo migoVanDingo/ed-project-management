@@ -28,6 +28,7 @@ class CreateProjectHandler(AbstractHandler):
         """
         try:
             payload = await request.json()
+            payload["owner_id"] = request.state.user_id
             project = Project(**payload)
         except TypeError as e:
             logger.error(f"Error creating project: {e}")
