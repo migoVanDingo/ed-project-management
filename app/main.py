@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app.api.controller.health_check import router as health_router
 from app.api.router.project_router import router as project_router
 from platform_common.middleware.request_id_middleware import RequestIDMiddleware
+from platform_common.middleware.auth_middleware import AuthMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from platform_common.exception_handling.handlers import add_exception_handlers
 from strawberry.fastapi import GraphQLRouter
@@ -21,6 +22,7 @@ app.add_middleware(
     allow_headers=["*"],  # <-- allow all headers (Authorization, Content-Type…)
 )
 app.add_middleware(RequestIDMiddleware)
+app.add_middleware(AuthMiddleware)
 add_exception_handlers(app)
 
 # REST endpoints
