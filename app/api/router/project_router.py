@@ -46,6 +46,7 @@ async def update_project(
 @router.delete("/delete/{project_id}")
 async def delete_project(
     project_id: str,
+    request: Request,
     handler: DeleteProjectHandler = Depends(DeleteProjectHandler),
 ) -> ServiceResponse:
-    return await handler.do_process(project_id)
+    return await handler.do_process(request, project_id)

@@ -2,9 +2,14 @@ from fastapi import Request, Depends
 from app.api.interface.abstract_handler import AbstractHandler
 from platform_common.utils.service_response import ServiceResponse
 from platform_common.logging.logging import get_logger
-from platform_common.errors.base import BadRequestError, NotFoundError
+from platform_common.errors.base import BadRequestError, NotFoundError, AuthError
 from platform_common.db.dependencies.get_dal import get_dal
 from platform_common.db.dal.project_dal import ProjectDAL
+from platform_common.auth.permissions import (
+    PROJECT_EDIT,
+    RESOURCE_TYPE_PROJECT,
+    require_perm,
+)
 
 logger = get_logger("update_project_handler")
 
@@ -19,6 +24,9 @@ class UpdateProjectHandler(AbstractHandler):
         self.project_dal = project_dal
 
     async def do_process(self, request: Request, project_id: str) -> ServiceResponse:
+        user_id = getattr(request.state, "user_id", None)
+        if not user_id:
+            raise AuthError("Not authenticated")
 
         update_data = await request.json()
 
@@ -28,6 +36,14 @@ class UpdateProjectHandler(AbstractHandler):
         project = await self.project_dal.get_by_id(project_id)
         if not project:
             raise NotFoundError(message="Project not found", code="PROJECT_NOT_FOUND")
+
+        await require_perm(
+            session=self.project_dal.session,
+            user_id=user_id,
+            perm_bit=PROJECT_EDIT,
+            resource_type=RESOURCE_TYPE_PROJECT,
+            resource_obj=project,
+        )
 
         updated_project = await self.project_dal.update(project_id, update_data)
 
