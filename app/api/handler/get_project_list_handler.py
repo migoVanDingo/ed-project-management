@@ -3,7 +3,7 @@ from platform_common.db.dal.project_dal import ProjectDAL
 from app.api.interface.abstract_handler import AbstractHandler
 from platform_common.utils.service_response import ServiceResponse
 from platform_common.logging.logging import get_logger
-from platform_common.errors.base import AuthError
+from platform_common.errors.base import AuthError, BadRequestError
 from platform_common.db.dependencies.get_dal import get_dal
 from platform_common.auth.permissions import PROJECT_VIEW, RESOURCE_TYPE_PROJECT, can
 
@@ -24,9 +24,23 @@ class GetProjectListHandler(AbstractHandler):
         if not user_id:
             raise AuthError("Not authenticated")
 
+        owner_type = (request.query_params.get("owner_type") or "user").lower()
+        if owner_type == "organization":
+            owner_type = "org"
+        if owner_type not in {"user", "org"}:
+            raise BadRequestError(
+                message="owner_type must be either 'user' or 'org'",
+                code="INVALID_OWNER_TYPE",
+            )
+
         organization_id = request.query_params.get("organization_id")
 
-        if organization_id:
+        if owner_type == "org":
+            if not organization_id:
+                raise BadRequestError(
+                    message="organization_id is required when owner_type is 'org'",
+                    code="ORGANIZATION_ID_REQUIRED",
+                )
             projects = await self.project_dal.list_for_user(
                 user_id=user_id, organization_id=organization_id
             )
