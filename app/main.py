@@ -1,14 +1,38 @@
+import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from app.api.controller.health_check import router as health_router
 from app.api.router.project_router import router as project_router
+from app.pubsub.project_workspace_job_subscriber import (
+    start_project_workspace_job_subscriber,
+)
 from platform_common.middleware.request_id_middleware import RequestIDMiddleware
 from platform_common.middleware.auth_middleware import AuthMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from platform_common.exception_handling.handlers import add_exception_handlers
-from strawberry.fastapi import GraphQLRouter
+from platform_common.logging.logging import get_logger
 
-app = FastAPI(title="Core Service")
+logger = get_logger("project_management.lifespan")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    worker_task = asyncio.create_task(start_project_workspace_job_subscriber())
+    app.state.project_workspace_job_task = worker_task
+
+    try:
+        yield
+    finally:
+        worker_task.cancel()
+        try:
+            await worker_task
+        except asyncio.CancelledError:
+            logger.info("Project workspace job subscriber task cancelled cleanly.")
+
+
+app = FastAPI(title="Core Service", lifespan=lifespan)
 origins = [
     "http://localhost:5173",  # common React dev port
     "http://127.0.0.1:5173",
